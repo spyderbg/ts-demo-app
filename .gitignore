@@ -1,0 +1,6 @@
+node_modules/
+build/
+dist/
+.gda-sync/
+*.log
+test-results/
