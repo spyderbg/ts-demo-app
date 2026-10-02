@@ -29,7 +29,7 @@ The first launch creates the **Verdant** workspace with 18 real sample files: te
 - Click an asset to inspect its metadata and enlarge its preview.
 - Select assets and choose **Sync selected**, sync an individual asset, or **Sync all pending**.
 - Review the files and destination in the sync dialog, then confirm the copy.
-- Use **Rescan** after editing a source file to recompute its sync status.
+- Use **Rescan** after editing a source file to recompute its sync status and retry any failed previews.
 - Open the source or GDA folder in your file manager, or copy its full path.
 - Review persisted sync activity, including the individual files copied.
 - Connect your own existing source and GDA folders under **Workspace settings**.
@@ -107,3 +107,5 @@ dist/           Generated standalone Linux executable
 Packaging follows the [Node single-executable application workflow](https://nodejs.org/api/single-executable-applications.html). DDS decoding follows Microsoft's [DDS header](https://learn.microsoft.com/en-us/windows/win32/direct3ddds/dds-header) and [block-compression](https://learn.microsoft.com/en-us/windows/win32/direct3d10/d3d10-graphics-programming-guide-resources-block-compression) documentation.
 
 The BC7 decoder and partition tables are adapted from [bcdec](https://github.com/iOrange/bcdec) under the MIT license. Its copyright and license are retained in `backend/bc7.ts` and the bundled application. Regression vectors cover all eight BC7 modes, all partition patterns, channel rotations, and index selectors.
+
+Version 1.0.1 also retries failed thumbnails on Rescan, renews the local session after a server restart, and shows DDS images in full over a transparency grid with their original colors. HTML and frontend assets are served without caching to avoid retaining an older application build.

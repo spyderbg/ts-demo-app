@@ -11,3 +11,7 @@
 @media(max-width:700px){.settings-nav{display:flex;font-size:0;justify-content:center;gap:0;padding:13px 0;margin-bottom:10px}}
 
 .stop-application{border-top:1px solid #e3e9d7;padding-top:23px;margin-top:23px}.stop-application small{display:block;font-size:9px;color:#a2ad93;margin-top:10px}
+
+/* DDS assets can be small UI sprites: retain the full image, color and alpha. */
+.thumbnail.dds{background-color:#f4f5ef;background-image:conic-gradient(#e1e5d9 25%,transparent 0 50%,#e1e5d9 0 75%,transparent 0);background-size:16px 16px}
+.thumbnail.dds img,.enlarged-preview .thumbnail.dds img{object-fit:contain;filter:none;transform:none;background:transparent}

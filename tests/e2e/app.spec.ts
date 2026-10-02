@@ -96,9 +96,46 @@ test.describe.serial('GDA Sync workspace', () => {
     await expect(page.getByText('DDS preview supported')).toBeVisible();
     const image = page.locator('.inspector img');
     await expect.poll(() => image.evaluate((img: HTMLImageElement) => [img.naturalWidth, img.naturalHeight])).toEqual([136, 134]);
+    await expect(image).toHaveCSS('object-fit', 'contain');
+    await expect(image).toHaveCSS('filter', 'none');
+    await expect(page.locator('.asset-card img')).toHaveCSS('object-fit', 'contain');
     await page.getByRole('button', { name: 'Enlarge k_active_en.dds preview' }).click();
     await expect(page.getByRole('dialog').getByRole('img', { name: 'k_active_en.dds preview', exact: true })).toBeVisible();
     await page.keyboard.press('Escape');
+  });
+  test('rescan recovers a failed DDS thumbnail without changing the source file', async ({ page, request }) => {
+    const library = await (await request.get('/api/library')).json();
+    const asset = library.assets.find((a: { name: string }) => a.name === 'k_active_en.dds');
+    let fail = true;
+    await page.route(`**/api/assets/${asset.id}/preview?*`, route => fail
+      ? route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"Temporary preview failure"}' })
+      : route.continue());
+    await page.goto('/');
+    await page.getByRole('textbox', { name: 'Search assets' }).fill('k_active_en.dds');
+    await page.getByRole('button', { name: 'Inspect k_active_en.dds', exact: true }).click();
+    await expect(page.getByText('No image preview available', { exact: true })).toBeVisible();
+    await expect(page.locator('.asset-card img')).toHaveCount(0);
+    fail = false;
+    await page.getByRole('button', { name: 'Rescan', exact: true }).click();
+    await expect(page.getByRole('status')).toContainText('19 assets found');
+    await expect.poll(() => page.locator('.inspector img').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(136);
+    await expect.poll(() => page.locator('.asset-card img').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(136);
+    await expect(page.getByText('No image preview available', { exact: true })).not.toBeVisible();
+    const rescanned = await (await request.get('/api/library')).json();
+    expect(rescanned.assets.find((a: { name: string }) => a.name === 'k_active_en.dds').modifiedAt).toBe(asset.modifiedAt);
+  });
+  test('renews an expired server session and retries the rejected rescan once', async ({ page }) => {
+    let scans = 0, sessions = 0;
+    await page.route('**/api/session', route => { sessions++; return route.continue(); });
+    await page.route('**/api/scan', route => {
+      scans++;
+      return scans === 1 ? route.fulfill({ status: 403, contentType: 'application/json', body: '{"error":"Invalid session. Reload the application."}' }) : route.continue();
+    });
+    await page.goto('/');
+    await expect(page.locator('.asset-card')).toHaveCount(19);
+    await page.getByRole('button', { name: 'Rescan', exact: true }).click();
+    await expect(page.getByRole('status')).toContainText('19 assets found');
+    expect(scans).toBe(2); expect(sessions).toBeGreaterThan(1);
   });
   test('stops the local application and leaves a clear closed-workspace screen', async ({ page }) => {
     await page.goto('/');

@@ -4,6 +4,7 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { Library, AppError, safePath } from './library';
 import { embeddedFiles } from './embedded';
+import packageInfo from '../package.json';
 
 export async function openOnDesktop(target: string) {
   const command = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'explorer.exe' : 'xdg-open';
@@ -17,12 +18,12 @@ export function createServer(library: Library, options: { dev?: boolean; opener?
   const app = Fastify({ logger: false, bodyLimit: 128 * 1024 });
   const token = randomBytes(32).toString('hex');
   app.addHook('onRequest', async (request, reply) => {
+    reply.header('Cache-Control', 'no-store');
     reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('Referrer-Policy', 'same-origin');
     reply.header('Cross-Origin-Resource-Policy', 'same-origin');
     if (!['127.0.0.1', 'localhost', '[::1]'].includes(request.hostname)) throw new AppError('Invalid local host', 403);
     if (request.url.startsWith('/api/')) {
-      reply.header('Cache-Control', 'no-store');
       if (request.headers['sec-fetch-site'] === 'cross-site') throw new AppError('Cross-site requests are not allowed', 403);
       if (!['GET', 'HEAD'].includes(request.method) && request.headers['x-gda-token'] !== token) throw new AppError('Invalid session. Reload the application.', 403);
     }
@@ -32,13 +33,13 @@ export function createServer(library: Library, options: { dev?: boolean; opener?
     if (status >= 500) console.error(error.message);
     reply.code(status).send({ error: status >= 500 && !(error instanceof AppError) ? 'The operation could not be completed. Check folder permissions and try again.' : error.message });
   });
-  app.get('/api/session', async () => ({ token, version: '1.0.0' }));
+  app.get('/api/session', async () => ({ token, version: packageInfo.version }));
   app.post('/api/shutdown', async () => {
     if (!options.onShutdown) throw new AppError('Shutdown is unavailable in this session', 503);
     setTimeout(() => options.onShutdown!(), 150);
     return { stopping: true };
   });
-  app.get('/api/health', async () => ({ app: 'gda-sync', ready: true }));
+  app.get('/api/health', async () => ({ app: 'gda-sync', ready: true, version: packageInfo.version }));
   app.get('/api/library', async () => library.scan());
   app.post('/api/scan', async () => library.rescan());
   app.post<{ Body: { ids: string[] } }>('/api/sync', {

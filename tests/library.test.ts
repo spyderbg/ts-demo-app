@@ -73,7 +73,9 @@ test('invalid workspace connections are rejected and valid connections persist',
 test('API validates payloads, rejects foreign requests and requires session token for writes', async t => {
   const { library } = await fixture(t); let opened = '';
   const app = createServer(library, { dev: true, opener: async p => { opened = p; } }); t.after(() => app.close());
-  assert.equal((await app.inject({ method: 'GET', url: '/api/health' })).statusCode, 200);
+  const health = await app.inject({ method: 'GET', url: '/api/health' });
+  assert.equal(health.statusCode, 200); assert.equal(health.json().version, '1.0.1');
+  assert.equal((await app.inject({ method: 'GET', url: '/' })).headers['cache-control'], 'no-store');
   assert.equal((await app.inject({ method: 'GET', url: '/api/library', headers: { host: 'attacker.example' } })).statusCode, 403);
   assert.equal((await app.inject({ method: 'GET', url: '/api/session', headers: { 'sec-fetch-site': 'cross-site' } })).statusCode, 403);
   assert.equal((await app.inject({ method: 'POST', url: '/api/scan' })).statusCode, 403);
