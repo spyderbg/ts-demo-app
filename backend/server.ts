@@ -16,10 +16,11 @@ export async function openOnDesktop(target: string) {
     child.once('exit', code => code === 0 ? resolve() : reject(new AppError('Could not open the folder in your desktop session. You can copy the path instead.', 503)));
   });
 }
-export function createServer(library: Library, options: { dev?: boolean; opener?: (path: string) => Promise<void>; onShutdown?: () => void; pageCloseGraceMs?: number } = {}) {
+export function createServer(library: Library, options: { dev?: boolean; opener?: (path: string) => Promise<void>; onShutdown?: () => void; stopOnPageClose?: boolean; pageCloseGraceMs?: number } = {}) {
   // Close browser sockets promptly; the onClose hook waits for file operations.
   const app = Fastify({ logger: false, bodyLimit: 128 * 1024, forceCloseConnections: true });
   const token = randomBytes(32).toString('hex');
+  const autoShutdownOnClose = (options.stopOnPageClose ?? false) && !!options.onShutdown;
   const lifetime = new PageLifetime(() => options.onShutdown?.(), options.pageCloseGraceMs);
   app.addHook('preClose', async () => lifetime.dispose());
   app.addHook('onClose', async () => library.waitForIdle());
@@ -41,10 +42,10 @@ export function createServer(library: Library, options: { dev?: boolean; opener?
   });
   app.get('/api/session', async (_request, reply) => {
     reply.header('Set-Cookie', `gda-session=${token}; HttpOnly; SameSite=Strict; Path=/api/lifecycle`);
-    return { token, version: packageInfo.version, autoShutdownOnClose: !!options.onShutdown };
+    return { token, version: packageInfo.version, autoShutdownOnClose };
   });
   app.get('/api/lifecycle', async (request, reply) => {
-    if (!options.onShutdown) throw new AppError('Automatic shutdown is unavailable in this session', 503);
+    if (!autoShutdownOnClose) throw new AppError('Automatic shutdown is unavailable in this session', 503);
     const authenticated = request.headers.cookie?.split(';').some(cookie => cookie.trim() === `gda-session=${token}`);
     if (!authenticated) throw new AppError('Invalid lifecycle session', 403);
     reply.hijack();

@@ -91,6 +91,8 @@ npm run package:linux   # Build dist/gda-sync on Linux
 npm run package:windows # Build dist/gda-sync.exe on Linux or Windows
 ```
 
+`stopOnPageClose` defaults to `false`: development and ordinary builds keep the backend running when the page closes. The `package`, `package:linux`, and `package:windows` commands build the dist executables with `--stop-on-page-close=true`. To enable this for an ordinary build, use `npm run build -- --stop-on-page-close=true`. The launch parameter `--stop-on-page-close=true` or `--stop-on-page-close=false` overrides the built-in default; manual Stop application remains available in either mode.
+
 For browser tests, install Chromium once:
 
 ```bash
@@ -114,6 +116,7 @@ Useful launch options:
 
 ```bash
 ./dist/gda-sync --no-open
+./dist/gda-sync --stop-on-page-close=false
 GDA_SYNC_HOME=/path/to/app-data ./dist/gda-sync
 PORT=4567 ./dist/gda-sync
 GDA_SYNC_NO_OPEN=1 npm run dev

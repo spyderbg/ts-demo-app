@@ -15,13 +15,13 @@ async function waitFor(check: () => boolean | Promise<boolean>) {
   }
 }
 
-async function fixture(t: TestContext, graceMs = 100) {
+async function fixture(t: TestContext, graceMs = 100, options: { stopOnPageClose?: boolean } = { stopOnPageClose: true }) {
   const root = await mkdtemp(path.join(tmpdir(), 'gda-lifetime-'));
   const library = new Library(root); await library.init();
   let shutdowns = 0, closed = false;
   let closing: Promise<void> | undefined;
   const app = createServer(library, {
-    dev: true, pageCloseGraceMs: graceMs,
+    dev: true, pageCloseGraceMs: graceMs, ...options,
     onShutdown: () => {
       shutdowns++;
       closing = app.close().then(() => { closed = true; });
@@ -31,7 +31,7 @@ async function fixture(t: TestContext, graceMs = 100) {
   const session = await fetch(`${url}/api/session`);
   const cookie = session.headers.get('set-cookie')!.split(';')[0];
   const { token, autoShutdownOnClose } = await session.json();
-  assert.equal(autoShutdownOnClose, true);
+  assert.equal(autoShutdownOnClose, options.stopOnPageClose ?? false);
   assert.match(session.headers.get('set-cookie')!, /HttpOnly; SameSite=Strict; Path=\/api\/lifecycle/);
   const controllers: AbortController[] = [];
   t.after(async () => {
@@ -52,6 +52,23 @@ async function fixture(t: TestContext, graceMs = 100) {
   const pages = async () => (await (await fetch(`${url}/api/health`)).json()).openPages as number;
   return { app, library, url, token, cookie, connect, pages,
     get shutdowns() { return shutdowns; }, get closed() { return closed; }, get closing() { return closing; } };
+}
+
+for (const options of [{}, { stopOnPageClose: false }]) {
+  test(`page-close shutdown is disabled ${'stopOnPageClose' in options ? 'explicitly' : 'by default'}; manual shutdown still works`, async t => {
+    const f = await fixture(t, 100, options);
+    const response = await fetch(`${f.url}/api/lifecycle`, { headers: { cookie: f.cookie } });
+    assert.equal(response.status, 503);
+    await response.json();
+    await delay(150);
+    assert.equal(f.shutdowns, 0);
+    assert.equal(await f.pages(), 0);
+    const stopped = await fetch(`${f.url}/api/shutdown`, { method: 'POST', headers: { 'x-gda-token': f.token } });
+    assert.equal(stopped.status, 200);
+    assert.deepEqual(await stopped.json(), { stopping: true });
+    await waitFor(() => f.closed);
+    assert.equal(f.shutdowns, 1);
+  });
 }
 
 test('lifecycle is authenticated and waits for the first page before scheduling shutdown', async t => {

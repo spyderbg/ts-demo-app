@@ -3,6 +3,9 @@ import { build } from 'esbuild';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
+const pageCloseArg = process.argv.slice(2).find(arg => arg.startsWith('--stop-on-page-close='))?.split('=')[1] ?? 'false';
+if (!['true', 'false'].includes(pageCloseArg)) throw new Error('--stop-on-page-close must be true or false');
+
 await viteBuild();
 const files: Record<string, { mime: string; base64: string }> = {};
 const mime: Record<string, string> = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2' };
@@ -17,6 +20,7 @@ await walk(''); await mkdir('build', { recursive: true });
 await writeFile('build/embedded.ts', `export const embeddedFiles = ${JSON.stringify(files)};\n`);
 await build({
   entryPoints: ['backend/main.ts'], outfile: 'build/server.cjs', bundle: true, platform: 'node', target: 'node22', format: 'cjs',
+  define: { GDA_SYNC_STOP_ON_PAGE_CLOSE: pageCloseArg },
   plugins: [{ name: 'embedded-frontend', setup(builder) { builder.onResolve({ filter: /^\.\/embedded$/ }, () => ({ path: path.resolve('build/embedded.ts') })); } }],
 });
 console.log('Built frontend and backend → build/server.cjs');

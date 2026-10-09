@@ -7,14 +7,17 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { test as base, expect } from '@playwright/test';
 
 type Backend = { url: string; child: ChildProcess; exited: Promise<number | null> };
-const test = base.extend<{ backend: Backend }>({
-  backend: async ({}, use) => {
+const test = base.extend<{ backend: Backend; stopOnPageClose: boolean | 'default' }>({
+  stopOnPageClose: [true, { option: true }],
+  backend: async ({ stopOnPageClose }, use) => {
     const socket = createServer();
     await new Promise<void>(resolve => socket.listen(0, '127.0.0.1', resolve));
     const port = (socket.address() as { port: number }).port;
     await new Promise<void>(resolve => socket.close(() => resolve()));
     const home = await mkdtemp(path.join(tmpdir(), 'gda-lifetime-e2e-'));
-    const child = spawn(process.execPath, ['build/server.cjs', '--no-open'], {
+    const args = ['build/server.cjs', '--no-open'];
+    if (stopOnPageClose !== 'default') args.push(`--stop-on-page-close=${stopOnPageClose}`);
+    const child = spawn(process.execPath, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env, PORT: String(port), GDA_SYNC_HOME: home },
     });
@@ -39,6 +42,21 @@ const test = base.extend<{ backend: Backend }>({
 
 async function pages(backend: Backend) {
   return (await (await fetch(`${backend.url}/api/health`)).json()).openPages as number;
+}
+
+for (const stopOnPageClose of ['default', false] as const) {
+  test.describe(`page-close shutdown ${stopOnPageClose === 'default' ? 'build default' : 'disabled by launch parameter'}`, () => {
+    test.use({ stopOnPageClose });
+    test('closing the page keeps the backend running', async ({ page, backend }) => {
+      await page.goto(backend.url);
+      const session = await (await fetch(`${backend.url}/api/session`)).json();
+      expect(session.autoShutdownOnClose).toBe(false);
+      await page.close();
+      await delay(2_200);
+      expect(backend.child.exitCode).toBeNull();
+      expect(await pages(backend)).toBe(0);
+    });
+  });
 }
 
 test('refresh and another open tab keep the backend alive; closing the last tab exits the process', async ({ page, context, backend }) => {

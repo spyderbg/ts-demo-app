@@ -3,8 +3,16 @@ import { Library } from './library';
 import { createServer, openOnDesktop } from './server';
 import { applicationDataHome } from './platform';
 
+// Replaced by the bundler; source and ordinary builds default to false.
+declare const GDA_SYNC_STOP_ON_PAGE_CLOSE: boolean;
+
 async function main() {
   const args = process.argv.slice(2);
+  const pageCloseArg = args.find(arg => arg.startsWith('--stop-on-page-close='))?.split('=')[1];
+  if (pageCloseArg !== undefined && !['true', 'false'].includes(pageCloseArg)) throw new Error('--stop-on-page-close must be true or false');
+  const stopOnPageClose = pageCloseArg === undefined
+    ? (typeof GDA_SYNC_STOP_ON_PAGE_CLOSE !== 'undefined' ? GDA_SYNC_STOP_ON_PAGE_CLOSE : false)
+    : pageCloseArg === 'true';
   const dataHome = applicationDataHome();
   const port = Number(process.env.PORT || 5175);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT must be between 1 and 65535');
@@ -12,7 +20,7 @@ async function main() {
   const shouldOpen = !args.includes('--no-open') && process.env.GDA_SYNC_NO_OPEN !== '1';
   const url = dev ? 'http://127.0.0.1:5176' : `http://127.0.0.1:${port}`;
   const library = new Library(path.resolve(dataHome)); await library.init();
-  const app = createServer(library, { dev, onShutdown: () => void close() });
+  const app = createServer(library, { dev, stopOnPageClose, onShutdown: () => void close() });
   try { await app.listen({ port, host: '127.0.0.1' }); }
   catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'EADDRINUSE') throw error;
