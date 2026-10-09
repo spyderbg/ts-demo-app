@@ -5,18 +5,24 @@ import path from 'node:path';
 import { Library, AppError, safePath } from './library';
 import { embeddedFiles } from './embedded';
 import packageInfo from '../package.json';
+import { PageLifetime } from './page-lifetime';
+import { desktopCommand } from './platform';
 
 export async function openOnDesktop(target: string) {
-  const command = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'explorer.exe' : 'xdg-open';
+  const { command, args, env } = desktopCommand(target);
   await new Promise<void>((resolve, reject) => {
-    const child = spawn(command, [target], { stdio: 'ignore' });
+    const child = spawn(command, args, { stdio: 'ignore', windowsHide: true, env });
     child.once('error', () => reject(new AppError('A desktop file manager is not available. You can copy the folder path instead.', 503)));
     child.once('exit', code => code === 0 ? resolve() : reject(new AppError('Could not open the folder in your desktop session. You can copy the path instead.', 503)));
   });
 }
-export function createServer(library: Library, options: { dev?: boolean; opener?: (path: string) => Promise<void>; onShutdown?: () => void } = {}) {
-  const app = Fastify({ logger: false, bodyLimit: 128 * 1024 });
+export function createServer(library: Library, options: { dev?: boolean; opener?: (path: string) => Promise<void>; onShutdown?: () => void; pageCloseGraceMs?: number } = {}) {
+  // Close browser sockets promptly; the onClose hook waits for file operations.
+  const app = Fastify({ logger: false, bodyLimit: 128 * 1024, forceCloseConnections: true });
   const token = randomBytes(32).toString('hex');
+  const lifetime = new PageLifetime(() => options.onShutdown?.(), options.pageCloseGraceMs);
+  app.addHook('preClose', async () => lifetime.dispose());
+  app.addHook('onClose', async () => library.waitForIdle());
   app.addHook('onRequest', async (request, reply) => {
     reply.header('Cache-Control', 'no-store');
     reply.header('X-Content-Type-Options', 'nosniff');
@@ -33,13 +39,23 @@ export function createServer(library: Library, options: { dev?: boolean; opener?
     if (status >= 500) console.error(error.message);
     reply.code(status).send({ error: status >= 500 && !(error instanceof AppError) ? 'The operation could not be completed. Check folder permissions and try again.' : error.message });
   });
-  app.get('/api/session', async () => ({ token, version: packageInfo.version }));
+  app.get('/api/session', async (_request, reply) => {
+    reply.header('Set-Cookie', `gda-session=${token}; HttpOnly; SameSite=Strict; Path=/api/lifecycle`);
+    return { token, version: packageInfo.version, autoShutdownOnClose: !!options.onShutdown };
+  });
+  app.get('/api/lifecycle', async (request, reply) => {
+    if (!options.onShutdown) throw new AppError('Automatic shutdown is unavailable in this session', 503);
+    const authenticated = request.headers.cookie?.split(';').some(cookie => cookie.trim() === `gda-session=${token}`);
+    if (!authenticated) throw new AppError('Invalid lifecycle session', 403);
+    reply.hijack();
+    lifetime.connect(reply.raw);
+  });
   app.post('/api/shutdown', async () => {
     if (!options.onShutdown) throw new AppError('Shutdown is unavailable in this session', 503);
     setTimeout(() => options.onShutdown!(), 150);
     return { stopping: true };
   });
-  app.get('/api/health', async () => ({ app: 'gda-sync', ready: true, version: packageInfo.version }));
+  app.get('/api/health', async () => ({ app: 'gda-sync', ready: true, version: packageInfo.version, openPages: lifetime.count }));
   app.get('/api/library', async () => library.scan());
   app.post('/api/scan', async () => library.rescan());
   app.post<{ Body: { ids: string[] } }>('/api/sync', {
@@ -68,14 +84,14 @@ export function createServer(library: Library, options: { dev?: boolean; opener?
   });
   app.setNotFoundHandler((request, reply) => {
     if (request.url.startsWith('/api/')) return reply.code(404).send({ error: 'Endpoint not found' });
-    if (options.dev) return reply.type('text/html').send('<p>Development UI: <a href="http://127.0.0.1:5173">Open GDA Sync</a></p>');
+    if (options.dev) return reply.type('text/html').send('<p>Development UI: <a href="http://127.0.0.1:5176">Open GDA Sync</a></p>');
     const file = embeddedFiles[request.url.split('?')[0]] || (!path.extname(request.url) ? embeddedFiles['/index.html'] : undefined);
     if (!file) return reply.code(404).send({ error: 'File not found' });
     reply.header('Content-Security-Policy', "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'");
     return reply.type(file.mime).send(Buffer.from(file.base64, 'base64'));
   });
   app.get('/', async (_request, reply) => {
-    if (options.dev) return reply.redirect('http://127.0.0.1:5173');
+    if (options.dev) return reply.redirect('http://127.0.0.1:5176');
     const file = embeddedFiles['/index.html'];
     if (!file) throw new AppError('Frontend is not built. Run npm run build.', 503);
     reply.header('Content-Security-Policy', "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'");

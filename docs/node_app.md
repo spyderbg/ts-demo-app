@@ -32,7 +32,7 @@ Start Node backend
     ↓
 Open browser automatically
     ↓
-http://localhost:3456
+http://localhost:5175
 
 
 The user never sees a terminal.
@@ -43,7 +43,7 @@ import open from 'open';
 
 startServer();
 
-await open('http://localhost:3456');
+await open('http://localhost:5175');
 
 
 On Ubuntu this feels like a normal desktop application.
@@ -83,7 +83,7 @@ system tray icon
 
 and opens:
 
-http://localhost:3456
+http://localhost:5175
 
 
 in Chrome.

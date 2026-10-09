@@ -1,16 +1,16 @@
-import { homedir } from 'node:os';
 import path from 'node:path';
 import { Library } from './library';
 import { createServer, openOnDesktop } from './server';
+import { applicationDataHome } from './platform';
 
 async function main() {
   const args = process.argv.slice(2);
-  const dataHome = process.env.GDA_SYNC_HOME || path.join(process.env.XDG_DATA_HOME || path.join(homedir(), '.local', 'share'), 'gda-sync');
-  const port = Number(process.env.PORT || 3456);
+  const dataHome = applicationDataHome();
+  const port = Number(process.env.PORT || 5175);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT must be between 1 and 65535');
   const dev = process.env.GDA_SYNC_DEV === '1';
   const shouldOpen = !args.includes('--no-open') && process.env.GDA_SYNC_NO_OPEN !== '1';
-  const url = dev ? 'http://127.0.0.1:5173' : `http://127.0.0.1:${port}`;
+  const url = dev ? 'http://127.0.0.1:5176' : `http://127.0.0.1:${port}`;
   const library = new Library(path.resolve(dataHome)); await library.init();
   const app = createServer(library, { dev, onShutdown: () => void close() });
   try { await app.listen({ port, host: '127.0.0.1' }); }

@@ -51,10 +51,10 @@ test('path traversal and symbolic links cannot escape source or destination', as
   const { library, root } = await fixture(t);
   await assert.rejects(safePath(library.config.source, '../outside.txt'), /Invalid asset path/);
   await assert.rejects(safePath(library.config.source, root), /Invalid asset path/);
-  await symlink(root, path.join(library.config.source, 'escape'));
+  await symlink(root, path.join(library.config.source, 'escape'), 'junction');
   await assert.rejects(safePath(library.config.source, 'escape/secret'), /Symbolic links/);
   assert.ok((await library.scan()).warnings.some(w => w.includes('Skipped symbolic link')));
-  await symlink(root, path.join(library.config.destination, 'linked-folder'));
+  await symlink(root, path.join(library.config.destination, 'linked-folder'), 'junction');
   await assert.rejects(safePath(library.config.destination, 'linked-folder/surprise.txt', true), /Symbolic links/);
 });
 test('invalid workspace connections are rejected and valid connections persist', async t => {
@@ -74,7 +74,7 @@ test('API validates payloads, rejects foreign requests and requires session toke
   const { library } = await fixture(t); let opened = '';
   const app = createServer(library, { dev: true, opener: async p => { opened = p; } }); t.after(() => app.close());
   const health = await app.inject({ method: 'GET', url: '/api/health' });
-  assert.equal(health.statusCode, 200); assert.equal(health.json().version, '1.0.1');
+  assert.equal(health.statusCode, 200); assert.equal(health.json().version, '1.1.0');
   assert.equal((await app.inject({ method: 'GET', url: '/' })).headers['cache-control'], 'no-store');
   assert.equal((await app.inject({ method: 'GET', url: '/api/library', headers: { host: 'attacker.example' } })).statusCode, 403);
   assert.equal((await app.inject({ method: 'GET', url: '/api/session', headers: { 'sec-fetch-site': 'cross-site' } })).statusCode, 403);

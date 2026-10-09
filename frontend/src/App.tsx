@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowRight, ArrowUpRight, AudioLines, Box, Check, CheckCheck, ChevronDown, ChevronRight, CircleHelp, Clock3, Copy, ExternalLink, File, Folder, FolderOpen, Grid2X2, HardDrive, Image, Layers, LayoutGrid, List, LoaderCircle, MoreHorizontal, Power, RefreshCw, Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, X } from 'lucide-react';
 import type { Asset, AssetStatus, AssetType, LibraryResponse, WorkspaceConfig } from '../../backend/types';
 import packageInfo from '../../package.json';
+import { useBackendLifetime } from './useBackendLifetime';
 
 type View = 'library' | 'pending' | 'synced' | 'activity' | 'settings';
 const typeIcons = { texture: Image, model: Box, material: Layers, audio: AudioLines, other: File };
@@ -60,6 +61,7 @@ export default function App() {
   const [help, setHelp] = useState(false);
   const [shutdownConfirm, setShutdownConfirm] = useState(false);
   const [stopped, setStopped] = useState(false);
+  useBackendLifetime(!stopped);
   const [expanded, setExpanded] = useState(false);
   const [settings, setSettings] = useState<WorkspaceConfig | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);

@@ -10,8 +10,11 @@ export class AppError extends Error {
   constructor(message: string, public statusCode = 400) { super(message); }
 }
 const errorCode = (error: unknown) => (error as NodeJS.ErrnoException).code;
-export const assetId = (relative: string) => Buffer.from(relative).toString('base64url');
-const contained = (root: string, file: string) => file === root || file.startsWith(root + path.sep);
+export const assetId = (relative: string) => Buffer.from(relative.split(path.sep).join('/')).toString('base64url');
+const contained = (root: string, file: string) => {
+  const relative = path.relative(root, file);
+  return !path.isAbsolute(relative) && relative !== '..' && !relative.startsWith('..' + path.sep);
+};
 async function hash(file: string): Promise<string> {
   const result = createHash('sha256');
   for await (const chunk of createReadStream(file)) result.update(chunk);
@@ -46,6 +49,7 @@ export class Library {
   config!: WorkspaceConfig;
   activity: Activity[] = [];
   busy = false;
+  private idle: Promise<void> = Promise.resolve();
   private previewCache = new Map<string, Buffer>();
   private scannedAssets: Asset[] | null = null;
   constructor(public home: string) {}
@@ -134,8 +138,12 @@ export class Library {
   private async exclusive<T>(operation: () => Promise<T>): Promise<T> {
     if (this.busy) throw new AppError('Another workspace operation is in progress. Try again shortly.', 409);
     this.busy = true;
-    try { return await operation(); } finally { this.busy = false; }
+    let finished!: () => void;
+    this.idle = new Promise<void>(resolve => { finished = resolve; });
+    try { return await operation(); } finally { this.busy = false; finished(); }
   }
+  // An HTTP request can disconnect while its file operation is still running.
+  waitForIdle() { return this.idle; }
   async updateConfig(input: { name: string; source: string; destination: string }) {
     return this.exclusive(async () => {
       if (!input.name.trim() || input.name.length > 80) throw new AppError('Enter a project name of 1–80 characters');
