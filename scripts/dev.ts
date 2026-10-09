@@ -1,8 +1,8 @@
 import { spawn } from 'node:child_process';
 import { createServer } from 'vite';
-const vite = await createServer(); await vite.listen();
-const backend = spawn(process.execPath, ['--import', 'tsx', 'backend/main.ts'], {
-  stdio: 'inherit', env: { ...process.env, GDA_SYNC_DEV: '1' },
+const vite = await createServer({ server: { open: process.env.GDA_SYNC_NO_OPEN !== '1' } }); await vite.listen();
+const backend = spawn(process.execPath, ['--watch', '--watch-preserve-output', '--import', 'tsx', 'backend/main.ts'], {
+  stdio: 'inherit', env: { ...process.env, GDA_SYNC_DEV: '1', GDA_SYNC_NO_OPEN: '1' },
 });
 vite.printUrls();
 let closing = false;

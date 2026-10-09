@@ -91,6 +91,8 @@ npm run package:linux   # Build dist/gda-sync on Linux
 npm run package:windows # Build dist/gda-sync.exe on Linux or Windows
 ```
 
+`npm run dev` updates the frontend through Vite and automatically restarts the backend when its imported source files change. The browser opens once at startup. Press `Ctrl+C` to stop both servers.
+
 `stopOnPageClose` defaults to `false`: development and ordinary builds keep the backend running when the page closes. The `package`, `package:linux`, and `package:windows` commands build the dist executables with `--stop-on-page-close=true`. To enable this for an ordinary build, use `npm run build -- --stop-on-page-close=true`. The launch parameter `--stop-on-page-close=true` or `--stop-on-page-close=false` overrides the built-in default; manual Stop application remains available in either mode.
 
 For browser tests, install Chromium once:
