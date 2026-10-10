@@ -1,0 +1,6 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Frontend" type="NodeJSConfigurationType" path-to-js-file="$PROJECT_DIR$/node_modules/vite/bin/vite.js" working-dir="$PROJECT_DIR$" application-parameters="--host 127.0.0.1 --port 5176">
+    <browser start="true" name="98ca6316-2f89-46d9-a9e5-fa9e2b0625b3" url="http://127.0.0.1:5176" with-js-debugger="true" />
+    <method v="2" />
+  </configuration>
+</component>

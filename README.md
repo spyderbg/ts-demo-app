@@ -79,6 +79,20 @@ The server binds only to loopback. Write operations require a per-process sessio
 
 Requires Node.js 22.12+ (Node 24 recommended) and npm.
 
+WebStorm's shared run/debug configurations in `.run/` mirror `.vscode/launch.json`:
+**Backend** runs `backend/main.ts` with `--import tsx` and the development environment
+variables; **Frontend** starts Vite on `http://127.0.0.1:5176` and opens Chrome with
+the JavaScript debugger; **Full app** starts both. Select **Full app** and click
+**Debug** to debug the backend and frontend TypeScript together. These configurations
+use the project's Node.js runtime (Settings → Languages & Frameworks → JavaScript
+Runtime).
+
+To use the same Playwright Chromium as VS Code on Linux, run
+`npx playwright install chromium`, then set Chrome's executable path to this project's
+`scripts/chrome-debug.sh` under Settings → Tools → Web Browsers and Preview.
+WebStorm stores browser executable paths in IDE settings, separately from shared
+run configurations.
+
 ```bash
 npm ci
 npm run dev          # React development server + Fastify, browser opens automatically
