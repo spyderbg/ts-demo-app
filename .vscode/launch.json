@@ -1,0 +1,32 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Frontend",
+      "url": "http://127.0.0.1:5176",
+      "webRoot": "${workspaceFolder}/frontend",
+      "runtimeExecutable": "${workspaceFolder}/scripts/chrome-debug.sh",
+      "preLaunchTask": "vite",
+      "sourceMaps": true
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Backend",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--import", "tsx"],
+      "program": "${workspaceFolder}/backend/main.ts",
+      "env": { "GDA_SYNC_DEV": "1", "GDA_SYNC_NO_OPEN": "1" },
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Full app",
+      "configurations": ["Backend", "Frontend"]
+    }
+  ]
+}

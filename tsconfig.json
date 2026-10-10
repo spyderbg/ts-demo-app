@@ -14,6 +14,7 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "noEmit": true,
+    "rootDir": ".",
     "types": [
       "node"
     ]
