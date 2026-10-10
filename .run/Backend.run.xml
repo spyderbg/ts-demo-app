@@ -1,9 +1,12 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Backend" type="NodeJSConfigurationType" path-to-js-file="$PROJECT_DIR$/backend/main.ts" working-dir="$PROJECT_DIR$" node-parameters="--import tsx">
+  <configuration default="false" name="Backend" type="NodeJSConfigurationType" node-parameters="--import tsx" path-to-js-file="backend/main.ts" working-dir="$PROJECT_DIR$">
     <envs>
       <env name="GDA_SYNC_DEV" value="1" />
       <env name="GDA_SYNC_NO_OPEN" value="1" />
     </envs>
+    <EXTENSION ID="com.intellij.lang.javascript.buildTools.npm.rc.StartBrowserRunConfigurationExtension">
+      <browser name="98ca6316-2f89-46d9-a9e5-fa9e2b0625b3" />
+    </EXTENSION>
     <method v="2" />
   </configuration>
 </component>
